@@ -43,7 +43,7 @@ class OptimizerError(Exception):
 
 class Optimizer(object):
 
-    def __init__(self, source_dir, destination_bucket, exclude=[]):
+    def __init__(self, source_dir, destination_bucket, exclude=[], output_dir=None, aws_access_key_id=None, aws_secret_access_key=None):
         logger.debug('Initialize Optimizer class')
 
         if not os.path.isdir(source_dir):
@@ -65,7 +65,10 @@ class Optimizer(object):
         self._rewriteables_ext = ['.html', '.htm', '.js', '.css']
 
         self._source_dir = source_dir
-        self._destination_dir = mkdtemp()
+        if output_dir == None:
+            self._output_dir = mkdtemp()
+        else:
+            self._output_dir = output_dir
         self._destination_bucket = destination_bucket
 
         self._subdirs = []
@@ -73,6 +76,9 @@ class Optimizer(object):
         self._assets_map = {}
         self._rewritables = []
         self._exclude = exclude
+        self._aws_access_key_id = aws_access_key_id
+        self._aws_secret_access_key = aws_secret_access_key
+        self._skip_s3_upload = skip_s3_upload
 
         logger.debug('Optimizer class initialized')
 
@@ -123,7 +129,7 @@ class Optimizer(object):
     def _write_dirs(self):
         logger.debug('Writing dirs')
         for reldir in self._subdirs:
-            absdir = os.path.join(self._destination_dir, reldir)
+            absdir = os.path.join(self._output_dir, reldir)
             if not os.path.isdir(absdir):
                 logger.debug("Making dir {0}".format(absdir))
                 os.makedirs(absdir)
@@ -142,7 +148,7 @@ class Optimizer(object):
                 dst_filename = self._assets_map[src_filename]['new_filename']
 
             src = os.path.join(self._source_dir, src_filename)
-            dest = os.path.join(self._destination_dir, dst_filename)
+            dest = os.path.join(self._output_dir, dst_filename)
 
             # if file is rewritable
             if src_filename in self._rewritables:
@@ -170,19 +176,22 @@ class Optimizer(object):
         logger.debug('Uploading to bucket')
 
         try:
-            s3 = connect_s3()
+            s3 = connect_s3(aws_access_key_id=self._aws_access_key_id, aws_secret_access_key=self._aws_secret_access_key)
             bucket = s3.get_bucket(self._destination_bucket)
 
             to_be_deleted = [l.key for l in bucket.list()]
 
-            for dirpath, dirnames, fnames in os.walk(self._destination_dir):
+            for dirpath, dirnames, fnames in os.walk(self._output_dir):
 
                 for f in fnames:
                     abspath = os.path.join(dirpath, f)
-                    relpath = os.path.relpath(abspath, self._destination_dir)
+                    relpath = os.path.relpath(abspath, self._output_dir)
 
                     # do not delete this file
-                    to_be_deleted.remove(relpath)
+                    try:
+                        to_be_deleted.remove(relpath)
+                    except:
+                        pass
 
                     # check if file should be cached / reuploaded
                     is_asset = os.path.splitext(f)[1] in self._assets_ext
@@ -202,6 +211,7 @@ class Optimizer(object):
                         else:
                             # set no-cache headers
                             headers['Cache-Control'] = "no-cache, max-age=0"
+
                         logger.debug("Uploading file {0} to {1}".format(relpath, self._destination_bucket))
                         k.set_contents_from_filename(abspath, replace=True, headers=headers)
 
@@ -224,7 +234,8 @@ class Optimizer(object):
         self._calculate_fingerprints()
         self._write_dirs()
         self._write_files()
-        self._upload_to_bucket()
+        if not self._skip_s3_upload:
+            self._upload_to_bucket()
 
         logger.debug('Finished running optimize')
 
@@ -240,12 +251,16 @@ def main():
     logger.addHandler(ch)
 
     # parse arguments
-    parser = argparse.ArgumentParser(prog='sifaka', description='Run Appstrakt commands')
+    parser = argparse.ArgumentParser(prog='s3-site-cache-optimizer', description='Optimize a static website for hosting in S3, by including a fingerprint into all assets\' filenames. The optimized website is uploaded into the specified S3 bucket with the right cache headers.')
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
     parser.add_argument('--version', action='version', version='%(prog)s ' + str(require("s3-site-cache-optimizer")[0].version))
-    parser.add_argument("source_dir")
-    parser.add_argument("destination_bucket")
-    parser.add_argument('--exclude', nargs='+')
+    parser.add_argument("source_dir", help='Local directory containing a static website.')
+    parser.add_argument("destination_bucket", help='Domain name of the website and S3 bucket name.')
+    parser.add_argument('--exclude', nargs='+', metavar="PATTERN", default=[], help='Exclude files and directories matching these patterns.')
+    parser.add_argument('-o', '--output', dest='output_dir', default=None, help='Output directory in which local files are written. When absent a temporary directory is created and used.')
+    parser.add_argument('--access-key', dest="aws_access_key_id", default=None, help='AWS access key. If this field is not specified, credentials from environment or credentials files will be used.')
+    parser.add_argument('--secret-key', dest="aws_secret_access_key", default=None, help='AWS access secret. If this field is not specified, credentials from environment or credentials files will be used.')
+    parser.add_argument('--skip-s3-upload', dest="skip_s3_upload", action='store_true', help='Skip uploading to S3.')
 
     try:
         args = parser.parse_args()
@@ -258,7 +273,7 @@ def main():
         logger.setLevel(logging.DEBUG)
 
     try:
-        Optimizer(args.source_dir, args.destination_bucket, exclude=args.exclude).run()
+        Optimizer(args.source_dir, args.destination_bucket, exclude=args.exclude, output_dir=args.output_dir, aws_access_key_id=args.aws_access_key_id, aws_secret_access_key=args.aws_secret_access_key, skip_s3_upload=args.skip_s3_upload).run()
     except Exception as e:
         logger.error(e)
         exit(1)
