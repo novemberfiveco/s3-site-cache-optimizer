@@ -1,6 +1,5 @@
 from setuptools import setup
-
-__version__ = '0.1'
+from s3_site_cache_optimizer.optimize import __version__
 
 setup(
     name='s3-site-cache-optimizer',

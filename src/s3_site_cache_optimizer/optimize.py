@@ -1,6 +1,8 @@
 '''
-Optimize a static website before uploading to S3
-@author: Ruben Van den Bossche
+Optimize a static website for hosting in S3, by including a
+fingerprint into all assets\' filenames. The optimized website
+is uploaded into the specified S3 bucket with the right cache
+headers.
 '''
 
 from __future__ import print_function
@@ -18,10 +20,19 @@ from shutil import copyfile
 from fnmatch import fnmatch
 from tempfile import mkdtemp
 
+__author__ = "Ruben Van den Bossche"
+__email__ = "ruben@appstrakt.com"
+__copyright__ = "Copyright 2015, Appstrakt BVBA"
+__license__ = "MIT"
+__version__ = "0.1"
+
 logger = None
 
-# http://stackoverflow.com/questions/3431825/generating-a-md5-checksum-of-a-file
 def hashfile(afile, hasher, blocksize=65536):
+    '''
+    Calculate a hash from a file object.
+    '''
+
     buf = afile.read(blocksize)
     while len(buf) > 0:
         hasher.update(buf)
@@ -29,12 +40,19 @@ def hashfile(afile, hasher, blocksize=65536):
     return hasher.hexdigest()
 
 def convert_filename(filename, filehash):
+    '''
+    Convert filename to include file hash
+    '''
     ftup = os.path.splitext(filename)
 
     return ftup[0] + '.' + filehash + ftup[1]
 
 
 class OptimizerError(Exception):
+    '''
+    Error thrown by Optimizer class.
+    '''
+
     def __init__(self, msg):
         self.msg = msg
     def __str__(self):
@@ -42,8 +60,15 @@ class OptimizerError(Exception):
 
 
 class Optimizer(object):
+    '''
+    Optimizer class: Optimize a static website for hosting in S3.
+    '''
 
     def __init__(self, source_dir, destination_bucket, exclude=[], output_dir=None, aws_access_key_id=None, aws_secret_access_key=None):
+        '''
+        Initialize Optimizer
+        '''
+
         logger.debug('Initialize Optimizer class')
 
         if not os.path.isdir(source_dir):
@@ -52,25 +77,24 @@ class Optimizer(object):
         if not os.access(source_dir, os.R_OK):
             raise OptimizerError("{0} is not a readable dir".format(source_dir))
 
-        # if not os.path.isdir(destination_dir):
-        #     try:
-        #         os.makedirs(destination_dir)
-        #     except os.error as e:
-        #         raise OptimizerError("{0} is not a directory and cannot be created".format(destination_dir))
+        if output_dir != None:
+            if not os.path.isdir(output_dir):
+                try:
+                    os.makedirs(output_dir)
+                except os.error as e:
+                    raise OptimizerError("{0} is not a directory and cannot be created".format(output_dir))
 
-        # if not os.access(destination_dir, os.W_OK):
-        #     raise OptimizerError("{0} is not a writable dir".format(destination_dir))
+            if not os.access(output_dir, os.W_OK):
+                raise OptimizerError("{0} is not a writable dir".format(output_dir))
+        else:
+            output_dir = mkdtemp()
 
         self._assets_ext = ['.css', '.svg', '.ttf', '.woff', '.woff2', '.otf', '.eot', '.png', '.jpg', '.jpeg', '.gif', '.js']
         self._rewriteables_ext = ['.html', '.htm', '.js', '.css']
 
         self._source_dir = source_dir
-        if output_dir == None:
-            self._output_dir = mkdtemp()
-        else:
-            self._output_dir = output_dir
+        self._output_dir = output_dir
         self._destination_bucket = destination_bucket
-
         self._subdirs = []
         self._files = []
         self._assets_map = {}
@@ -84,6 +108,10 @@ class Optimizer(object):
 
 
     def _index_source_dir(self):
+        '''
+        Index all files and directories under the source directory
+        '''
+
         logger.debug('Indexing source dir')
         for dirpath, dirnames, fnames in os.walk(self._source_dir):
 
@@ -115,6 +143,10 @@ class Optimizer(object):
 
 
     def _calculate_fingerprints(self):
+        '''
+        Calculate fingerprints of all assets in the source dir
+        '''
+
         logger.debug('Calculating fingerprints')
 
         for fname in self._assets_map.keys():
@@ -127,6 +159,10 @@ class Optimizer(object):
 
 
     def _write_dirs(self):
+        '''
+        Write directory structure to output folder
+        '''
+
         logger.debug('Writing dirs')
         for reldir in self._subdirs:
             absdir = os.path.join(self._output_dir, reldir)
@@ -137,6 +173,10 @@ class Optimizer(object):
         logger.debug('Finished writing dirs')
 
     def _write_files(self):
+        '''
+        Write files to output folder, and rewrite file names/content if necessary.
+        '''
+
         logger.debug('Writing files')
         assets = self._assets_map.keys()
 
@@ -173,6 +213,9 @@ class Optimizer(object):
         logger.debug('Finished writing files')
 
     def _upload_to_bucket(self):
+        '''
+        Upload contents of output folder to S3.
+        '''
         logger.debug('Uploading to bucket')
 
         try:
@@ -228,6 +271,9 @@ class Optimizer(object):
 
 
     def run(self):
+        '''
+        Main entry method for the Optimizer object.
+        '''
         logger.debug('Running optimize')
 
         self._index_source_dir()
@@ -241,6 +287,9 @@ class Optimizer(object):
 
 
 def main():
+    '''
+    Main function for the s3-site-cache-optimizer CLI.
+    '''
 
     # init logger
     global logger
