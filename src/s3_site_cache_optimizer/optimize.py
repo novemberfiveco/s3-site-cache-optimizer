@@ -11,33 +11,42 @@ import argparse
 import os.path
 import logging
 import fileinput
+import re
 from boto import connect_s3
 from boto.s3.key import Key
 from boto.exception import BotoClientError, BotoServerError
 from pkg_resources import Requirement, resource_filename, require
 from hashlib import sha256
-from shutil import copyfile
+from shutil import copyfile, move
 from fnmatch import fnmatch
-from tempfile import mkdtemp
+from tempfile import mkdtemp, mkstemp
+from urlparse import urlparse
 
 __author__ = "Ruben Van den Bossche"
 __email__ = "ruben@appstrakt.com"
 __copyright__ = "Copyright 2015, Appstrakt BVBA"
 __license__ = "MIT"
-__version__ = "0.1"
+__version__ = "0.2"
 
 logger = None
 
-def hashfile(afile, hasher, blocksize=65536):
-    '''
-    Calculate a hash from a file object.
-    '''
 
-    buf = afile.read(blocksize)
-    while len(buf) > 0:
-        hasher.update(buf)
-        buf = afile.read(blocksize)
-    return hasher.hexdigest()
+def calculate_fingerprint(fname):
+    '''
+    Calculate a hash from a file name.
+    '''
+    hasher = sha256()
+    blocksize = 65536
+
+    with open(fname, 'rb') as f:
+        buf = f.read(blocksize)
+        while len(buf) > 0:
+            hasher.update(buf)
+            buf = f.read(blocksize)
+        filehash = hasher.hexdigest()
+        #logger.debug("Fingerprint of {0} is {1}".format(fname, filehash))
+        return filehash
+
 
 def convert_filename(filename, filehash):
     '''
@@ -64,7 +73,7 @@ class Optimizer(object):
     Optimizer class: Optimize a static website for hosting in S3.
     '''
 
-    def __init__(self, source_dir, destination_bucket, exclude=[], output_dir=None, aws_access_key_id=None, aws_secret_access_key=None):
+    def __init__(self, source_dir, destination_bucket, exclude=[], output_dir=None, aws_access_key_id=None, aws_secret_access_key=None, skip_s3_upload=False):
         '''
         Initialize Optimizer
         '''
@@ -133,7 +142,7 @@ class Optimizer(object):
                 ext = os.path.splitext(f)[1]
                 if ext in self._assets_ext:
                     logger.debug("Found asset {0}".format(f))
-                    self._assets_map[relpath] = {}
+                    self._assets_map[relpath] = {'basename': os.path.basename(relpath)}
 
                 if ext in self._rewriteables_ext:
                     logger.debug("Found rewritable {0}".format(f))
@@ -150,10 +159,8 @@ class Optimizer(object):
         logger.debug('Calculating fingerprints')
 
         for fname in self._assets_map.keys():
-            with open(os.path.join(self._source_dir, fname), 'rb') as f:
-                filehash = hashfile(f, sha256())
-                logger.debug("Fingerprint of {0} is {1}".format(fname, filehash))
-                self._assets_map[fname]['new_filename'] = convert_filename(fname, filehash)
+            fingerprint = calculate_fingerprint(os.path.join(self._source_dir, fname))
+            self._assets_map[fname]['new_filename'] = convert_filename(fname, fingerprint)
 
         logger.debug('Finished calculating fingerprints')
 
@@ -172,45 +179,106 @@ class Optimizer(object):
 
         logger.debug('Finished writing dirs')
 
+
+    def _rewrite_file(self, src, dst):
+        '''
+        rewrite a single file from source to dest
+        '''
+
+        with open(src, 'r') as f_src:
+            src_reldirpath = os.path.dirname(os.path.relpath(src, self._source_dir))
+
+            with open(dst, 'w') as f_dst:
+                # replace asset urls line by line
+                for line in f_src:
+                    for asset in self._assets_map.keys():
+                        if self._assets_map[asset]['basename'] in line:
+                            url_chars = '''a-z0-9''' + re.escape('''-_.~!#$&*+,/:;=?@[]''')
+                            regex = r'''[''' + url_chars + ''']*''' + re.escape(self._assets_map[asset]['basename']) + '''[''' + url_chars + ''']*'''
+                            #results = re.search(regex, line, re.IGNORECASE)
+
+                            it = re.finditer(regex, line, re.IGNORECASE)
+                            for result in it:
+                                url = result.group()
+                                print (url)
+                                parsed_url = urlparse(url)
+                                if parsed_url.netloc != '' and parsed_url.netloc != self._destination_bucket:
+                                    # leave this url alone, is third party resource
+                                    logger.info("Skipping url {0}.".format(url))
+                                    continue
+
+                                logger.debug("Found asset {0} in {1}".format(url, src))
+                                normalized_relative_path = os.path.normpath(os.path.join(src_reldirpath, parsed_url.path)).lstrip('/')
+
+                                if asset == normalized_relative_path:
+                                    new_path = '/' + os.path.join(os.path.dirname(normalized_relative_path), os.path.basename(self._assets_map[asset]['new_filename']))
+                                    logger.debug("Replacing with {0}".format(new_path))
+
+                                    line = line[:result.start()] + new_path + line[result.end():]
+
+                    f_dst.write(line)
+
+
     def _write_files(self):
         '''
         Write files to output folder, and rewrite file names/content if necessary.
         '''
 
         logger.debug('Writing files')
-        assets = self._assets_map.keys()
+        assets = set(self._assets_map.keys())
+        rewritables = set(self._rewritables)
 
-        for src_filename in self._files:
-            dst_filename = src_filename
-
-            # if file is asset
-            if src_filename in assets:
-                dst_filename = self._assets_map[src_filename]['new_filename']
+        # (1) Assets that are not rewritables
+        for src_filename in assets - rewritables:
+            dst_filename = self._assets_map[src_filename]['new_filename']
 
             src = os.path.join(self._source_dir, src_filename)
             dest = os.path.join(self._output_dir, dst_filename)
 
-            # if file is rewritable
-            if src_filename in self._rewritables:
-                logger.debug("Rewriting {0}".format(dest))
-                # open old and new file for reading and writing
-                with open(src, 'r') as f_src:
-                    with open(dest, 'w') as f_dst:
-                        # replace asset urls line by line
-                        for line in f_src:
-                            for asset in assets:
-                                # TODO: won't work if using relative paths (such as ../../main.css)
-                                # TODO: won't work if html contains filenames in plain text
-                                # TODO: won't work if files contain absolute paths to other domains
-                                line = line.replace(asset, self._assets_map[asset]['new_filename'])
-                            f_dst.write(line)
+            logger.debug("1. Writing asset {0} to {1}".format(src_filename, dst_filename))
+            copyfile(src, dest)
 
-            else:
-                # no rewriting necessary, just copy the file
-                logger.debug("Writing file to {0}".format(dest))
-                copyfile(src, dest)
+        # (2) Assets that are also rewritables
+        for src_filename in assets & rewritables:
+            # we assume these files don't have mutual references to eachother
+            # if they do, we need to build a dependency tree and solve order that way (TODO)
+
+            # make temp file
+            tmp_handle, tmp_filename = mkstemp(text=True)
+
+            src = os.path.join(self._source_dir, src_filename)
+            logger.debug("2. Rewriting asset {0} to temp file".format(src_filename))
+            self._rewrite_file(src, tmp_filename)
+
+            # close temp file and calculate fingerprint
+            fingerprint = calculate_fingerprint(tmp_filename)
+            dst_filename = convert_filename(src_filename, fingerprint)
+            self._assets_map[src_filename]['new_filename'] = dst_filename
+
+            # move temp file to destination
+            dest = os.path.join(self._output_dir, dst_filename)
+
+            logger.debug("2. Writing asset {0} to {1}".format(src_filename, dst_filename))
+            move(tmp_filename, dest)
+
+        # (3) Other rewritables
+        for src_filename in rewritables - assets:
+            src = os.path.join(self._source_dir, src_filename)
+            dest = os.path.join(self._output_dir, src_filename)
+
+            logger.debug("3. Rewriting asset {0}".format(src_filename))
+            self._rewrite_file(src, dest)
+
+        # (4) Other files
+        for src_filename in set(self._files) - assets - rewritables:
+            src = os.path.join(self._source_dir, src_filename)
+            dest = os.path.join(self._output_dir, src_filename)
+
+            logger.debug("4. Copying file {0}".format(src_filename))
+            copyfile(src, dest)
 
         logger.debug('Finished writing files')
+
 
     def _upload_to_bucket(self):
         '''
@@ -264,10 +332,9 @@ class Optimizer(object):
             bucket.delete_keys(to_be_deleted)
 
         except (BotoClientError, BotoServerError) as e:
-            raise OptimizerError("Error uploading to S3")
+            raise OptimizerError("Error uploading to S3" + str(e))
 
         logger.debug('Finished uploading to bucket')
-
 
 
     def run(self):

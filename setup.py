@@ -11,6 +11,6 @@ setup(
     packages=['s3_site_cache_optimizer'],
     package_dir={'': 'src'},
 
-    install_requires=[],
+    install_requires=['boto'],
     entry_points={ 'console_scripts' : ['s3-site-cache-optimizer=s3_site_cache_optimizer.optimize:main'] },
 )
