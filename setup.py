@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='s3-site-cache-optimizer',
     version='0.2',
-    license='MIT'
+    license='MIT',
 
     description='Optimize a static website before uploading to S3',
     long_description='Optimize a static website for hosting in S3, by including a fingerprint into \
