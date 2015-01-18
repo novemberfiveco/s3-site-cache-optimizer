@@ -26,7 +26,6 @@ __author__ = "Ruben Van den Bossche"
 __email__ = "ruben@appstrakt.com"
 __copyright__ = "Copyright 2015, Appstrakt BVBA"
 __license__ = "MIT"
-__version__ = "0.2"
 
 logger = None
 
@@ -279,8 +278,7 @@ class Optimizer(object):
             tmp_handle, tmp_filename = mkstemp(text=True)
 
             src = os.path.join(self._source_dir, src_filename)
-            logger.debug(
-                "2. Rewriting asset {0} to temp file".format(src_filename))
+            logger.debug("2. Rewriting asset {0} to temp file".format(src_filename))
             self._rewrite_file(src, tmp_filename)
 
             # close temp file and calculate fingerprint
@@ -352,8 +350,8 @@ class Optimizer(object):
                             # set no-cache headers
                             headers['Cache-Control'] = "no-cache, max-age=0"
 
-                        logger.debug(
-                            "Uploading file {0} to {1}".format(relpath, self._destination_bucket))
+                        logger.debug("Uploading file {0} to {1}".format(relpath,
+                                                                        self._destination_bucket))
                         k.set_contents_from_filename(abspath, replace=True, headers=headers)
 
             # remove files not currently touched

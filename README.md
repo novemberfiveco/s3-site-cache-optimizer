@@ -5,6 +5,61 @@ all assets' filenames. The optimized website is uploaded into the specified S3
 bucket with the right cache headers.
 
 
+## Installation
+
+You can install the stable version using the following [pip](https://pip.pypa.io/en/latest/) 
+command:
+
+	pip install --upgrade https://github.com/appstrakt/s3-site-cache-optimizer/archive/master.zip
+
+If you want to keep up with the latest features, install the development version:
+
+	pip install --upgrade https://github.com/appstrakt/s3-site-cache-optimizer/archive/develop.zip
+
+
+## Operation
+
+The command line tool executes the following steps:
+
+1. Index the (local) source dir containing the static website, and search for _assets_ and 
+_rewritables_.
+2. Calculate a hash from the contents of each _asset_, and rename it with the filehash in the 
+filename.
+3. Search the contents of the _rewritables_ for references to each of the assets, and rewrite 
+the urls if necessary. 
+4. (optional) Upload all files to an S3 bucket, and *remove all other files* from that bucket. 
+Assets are given a never-expiring cache header in order to optimize browser and proxy caching.
+
+All file operations are executed in a (temporary) output directory, the source directory is not 
+altered.
+
+_Assets_ and _rewritables_ are recognized based on their file extension. Currently, the following
+file extensions are considered as _assets_:
+
+- css
+- svg
+- ttf
+- woff
+- woff2
+- otf
+- eot
+- png
+- jpg
+- jpeg
+- gif
+- js
+
+_Rewritables_ are text-based files with one of the following extensions:
+
+- html
+- htm
+- js
+- css
+
+File a [feature request](https://github.com/appstrakt/s3-site-cache-optimizer/issues/new) 
+if you want to see other file extensions added.
+
+
 ## Usage
 
 	usage: s3-site-cache-optimizer [-h] [--debug] [--version]
@@ -44,5 +99,6 @@ bucket with the right cache headers.
 	$ s3-site-cache-optimizer ~/srv/www.example.com www.example.com --exclude ".git/*" ".git*"
 	$ s3-site-cache-optimizer ~/srv/www.example.com www.example.com --output ~/srv/example-optimized/ --skip-s3-upload
 
----
-Version 0.1
+## License
+
+The s3-site-cache-optimizer is released under the MIT license.
