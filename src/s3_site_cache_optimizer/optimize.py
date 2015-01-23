@@ -108,7 +108,7 @@ class Optimizer(object):
             output_dir = mkdtemp()
 
         self._assets_ext = ['.css', '.svg', '.ttf', '.woff', '.woff2', '.otf', '.eot', '.png',
-                            '.jpg', '.jpeg', '.gif', '.js']
+                            '.jpg', '.jpeg', '.gif', '.js', '.mp4', '.webm']
         self._rewriteables_ext = ['.html', '.htm', '.js', '.css']
 
         self._source_dir = source_dir
@@ -128,8 +128,7 @@ class Optimizer(object):
                     self._s3 = connect_s3(aws_access_key_id=aws_access_key_id,
                                           aws_secret_access_key=aws_secret_access_key)
                 else:
-                    self._s3 = connect_to_region(region,
-                                                 aws_access_key_id=aws_access_key_id,
+                    self._s3 = connect_to_region(region, aws_access_key_id=aws_access_key_id,
                                                  aws_secret_access_key=aws_secret_access_key)
             except (BotoClientError, BotoServerError) as e:
                 raise OptimizerError("Cannot connect to S3")
