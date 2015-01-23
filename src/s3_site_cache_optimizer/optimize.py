@@ -19,6 +19,7 @@ from fnmatch import fnmatch
 from tempfile import mkdtemp, mkstemp
 from urlparse import urlparse
 from boto import connect_s3
+from boto.s3 import connect_to_region
 from boto.s3.key import Key
 from boto.exception import BotoClientError, BotoServerError
 
@@ -76,7 +77,8 @@ class Optimizer(object):
     '''
 
     def __init__(self, source_dir, destination_bucket, exclude=[], output_dir=None,
-                 aws_access_key_id=None, aws_secret_access_key=None, skip_s3_upload=False):
+                 aws_access_key_id=None, aws_secret_access_key=None, skip_s3_upload=False,
+                 region=None):
         '''
         Initialize Optimizer
         '''
@@ -122,8 +124,13 @@ class Optimizer(object):
 
         if not self._skip_s3_upload:
             try:
-                self._s3 = connect_s3(aws_access_key_id=aws_access_key_id,
-                                      aws_secret_access_key=aws_secret_access_key)
+                if region == None:
+                    self._s3 = connect_s3(aws_access_key_id=aws_access_key_id,
+                                          aws_secret_access_key=aws_secret_access_key)
+                else:
+                    self._s3 = connect_to_region(region,
+                                                 aws_access_key_id=aws_access_key_id,
+                                                 aws_secret_access_key=aws_secret_access_key)
             except (BotoClientError, BotoServerError) as e:
                 raise OptimizerError("Cannot connect to S3")
 
@@ -416,6 +423,7 @@ def main():
     parser.add_argument('--secret-key', dest="aws_secret_access_key", default=None,
                         help='AWS access secret. If this field is not specified, credentials from \
                         environment or credentials files will be used.')
+    parser.add_argument('--region', default=None, help='AWS region to connect to.')
     parser.add_argument('--skip-s3-upload', dest="skip_s3_upload",
                         action='store_true', help='Skip uploading to S3.')
 
@@ -435,7 +443,7 @@ def main():
         Optimizer(args.source_dir, args.destination_bucket, exclude=args.exclude,
                   output_dir=args.output_dir, aws_access_key_id=args.aws_access_key_id,
                   aws_secret_access_key=args.aws_secret_access_key,
-                  skip_s3_upload=args.skip_s3_upload).run()
+                  skip_s3_upload=args.skip_s3_upload, region=args.region).run()
     except Exception as e:
         logger.critical(e)
         exit(1)
