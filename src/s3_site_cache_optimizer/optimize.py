@@ -78,7 +78,7 @@ class Optimizer(object):
 
     def __init__(self, source_dir, destination_bucket, exclude=[], output_dir=None,
                  aws_access_key_id=None, aws_secret_access_key=None, skip_s3_upload=False,
-                 region=None):
+                 region=None, domains=[], prefix=None):
         '''
         Initialize Optimizer
         '''
@@ -120,6 +120,8 @@ class Optimizer(object):
         self._assets_map = {}
         self._rewritables = []
         self._exclude = exclude
+        self._domains = domains
+        self._prefix = prefix
         self._skip_s3_upload = skip_s3_upload
 
         if not self._skip_s3_upload:
@@ -236,7 +238,7 @@ class Optimizer(object):
                                 url = result.group()
                                 parsed_url = urlparse(url)
                                 if parsed_url.netloc and \
-                                        parsed_url.netloc != self._destination_bucket:
+                                        parsed_url.netloc not in self._domains:
                                     # leave this url alone, is third party
                                     logger.warning("Skipping rewriting url {0}.".format(url))
                                     continue
@@ -323,13 +325,16 @@ class Optimizer(object):
         logger.info('Uploading to bucket')
 
         try:
-            to_be_deleted = [l.key for l in self._bucket.list()]
+            to_be_deleted = [l.key for l in self._bucket.list(prefix=self._prefix)]
 
             for dirpath, dirnames, fnames in os.walk(self._output_dir):
 
                 for f in fnames:
                     abspath = os.path.join(dirpath, f)
                     relpath = os.path.relpath(abspath, self._output_dir)
+
+                    if self._prefix != None:
+                        relpath = os.path.join(self._prefix, relpath)
 
                     # do not delete this file
                     try:
@@ -410,7 +415,7 @@ def main():
     parser.add_argument('--version', action='version', version='%(prog)s ' +
                         str(require("s3-site-cache-optimizer")[0].version))
     parser.add_argument("source_dir", help='Local directory containing a static website.')
-    parser.add_argument("destination_bucket", help='Domain name of the website and S3 bucket name.')
+    parser.add_argument("destination_bucket", help='S3 bucket name.')
     parser.add_argument('--exclude', nargs='+', metavar="PATTERN", default=[],
                         help='Exclude files and directories matching these patterns.')
     parser.add_argument('-o', '--output', dest='output_dir', default=None,
@@ -423,6 +428,11 @@ def main():
                         help='AWS access secret. If this field is not specified, credentials from \
                         environment or credentials files will be used.')
     parser.add_argument('--region', default=None, help='AWS region to connect to.')
+    parser.add_argument('--prefix', default=None, help='Subdirectory in which files are stored in \
+                                                        the bucket. Stored in the root of the \
+                                                        bucket by default.')
+    parser.add_argument('--domains', nargs='+', metavar="DOMAIN", default=[],
+                        help='Domain names on which the site will be hosted.')
     parser.add_argument('--skip-s3-upload', dest="skip_s3_upload",
                         action='store_true', help='Skip uploading to S3.')
 
@@ -442,7 +452,8 @@ def main():
         Optimizer(args.source_dir, args.destination_bucket, exclude=args.exclude,
                   output_dir=args.output_dir, aws_access_key_id=args.aws_access_key_id,
                   aws_secret_access_key=args.aws_secret_access_key,
-                  skip_s3_upload=args.skip_s3_upload, region=args.region).run()
+                  skip_s3_upload=args.skip_s3_upload, region=args.region,
+                  domains=args.domains, prefix=args.prefix).run()
     except Exception as e:
         logger.critical(e)
         exit(1)

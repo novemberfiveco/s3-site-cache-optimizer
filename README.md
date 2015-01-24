@@ -67,12 +67,15 @@ if you want to see other file extensions added.
 	                               [-o OUTPUT_DIR]
 	                               [--access-key AWS_ACCESS_KEY_ID]
 	                               [--secret-key AWS_SECRET_ACCESS_KEY]
+	                               [--region REGION] 
+	                               [--prefix PREFIX]
+	                               [--domains DOMAIN [DOMAIN ...]]
 	                               [--skip-s3-upload]
 	                               source_dir destination_bucket
 
 	positional arguments:
 	  source_dir            Local directory containing a static website.
-	  destination_bucket    Domain name of the website and S3 bucket name.
+	  destination_bucket    S3 bucket name.
 
 	optional arguments:
 	  -h, --help            show this help message and exit
@@ -91,13 +94,20 @@ if you want to see other file extensions added.
 	                        AWS access secret. If this field is not specified,
 	                        credentials from environment or credentials files will
 	                        be used.
+	  --region REGION       AWS region to connect to.
+	  --prefix PREFIX       Subdirectory in which files are stored in the bucket.
+	                        Stored in the root of the bucket by default.
+	  --domains DOMAIN [DOMAIN ...]
+	                        Domain names on which the site will be hosted.
 	  --skip-s3-upload      Skip uploading to S3.
+
 
 ### Example
 
 	$ s3-site-cache-optimizer ~/srv/www.example.com www.example.com --access-key XXXXXAPPSTRAKTXXXXX --secret-key XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-	$ s3-site-cache-optimizer ~/srv/www.example.com www.example.com --exclude ".git/*" ".git*"
+	$ s3-site-cache-optimizer ~/srv/www.example.com www.example.com --exclude ".git/*" ".git*" --region eu-west-1
 	$ s3-site-cache-optimizer ~/srv/www.example.com www.example.com --output ~/srv/example-optimized/ --skip-s3-upload
+	$ s3-site-cache-optimizer ~/srv/www.example.com my_bucket --domains www.example.com example.com --prefix "user/sites/www.example.com"
 
 ## License
 
