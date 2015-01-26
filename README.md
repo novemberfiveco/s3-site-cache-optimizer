@@ -68,6 +68,7 @@ if you want to see other file extensions added.
 	                               [--access-key AWS_ACCESS_KEY_ID]
 	                               [--secret-key AWS_SECRET_ACCESS_KEY]
 	                               [--region REGION] 
+	                               [--gzip]
 	                               [--prefix PREFIX]
 	                               [--domains DOMAIN [DOMAIN ...]]
 	                               [--skip-s3-upload]
@@ -95,6 +96,7 @@ if you want to see other file extensions added.
 	                        credentials from environment or credentials files will
 	                        be used.
 	  --region REGION       AWS region to connect to.
+	  --gzip                Gzip text-based files.
 	  --prefix PREFIX       Subdirectory in which files are stored in the bucket.
 	                        Stored in the root of the bucket by default.
 	  --domains DOMAIN [DOMAIN ...]

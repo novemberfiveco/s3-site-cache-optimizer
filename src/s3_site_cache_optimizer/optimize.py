@@ -12,6 +12,7 @@ import os.path
 import logging
 import fileinput
 import re
+import gzip
 from pkg_resources import Requirement, resource_filename, require
 from hashlib import sha256
 from shutil import copyfile, move, rmtree
@@ -78,7 +79,7 @@ class Optimizer(object):
 
     def __init__(self, source_dir, destination_bucket, exclude=[], output_dir=None,
                  aws_access_key_id=None, aws_secret_access_key=None, skip_s3_upload=False,
-                 region=None, domains=[], prefix=None):
+                 region=None, domains=[], prefix=None, gzip=False):
         '''
         Initialize Optimizer
         '''
@@ -110,6 +111,7 @@ class Optimizer(object):
         self._assets_ext = ['.css', '.svg', '.ttf', '.woff', '.woff2', '.otf', '.eot', '.png',
                             '.jpg', '.jpeg', '.gif', '.js', '.mp4', '.webm']
         self._rewriteables_ext = ['.html', '.htm', '.js', '.css']
+        self._gzip_ext = ['.html', '.htm', '.css', '.js', '.svg']
 
         self._source_dir = source_dir
         self._output_dir = output_dir
@@ -122,6 +124,7 @@ class Optimizer(object):
         self._exclude = exclude
         self._domains = domains
         self._prefix = prefix
+        self._gzip = gzip
         self._skip_s3_upload = skip_s3_upload
 
         if not self._skip_s3_upload:
@@ -318,6 +321,33 @@ class Optimizer(object):
 
         logger.debug('Finished writing files')
 
+
+    def _gzip_files(self):
+        '''
+        Gzip text files in output folder.
+        '''
+
+        logger.info('Gzipping files')
+
+        for dirpath, dirnames, fnames in os.walk(self._output_dir):
+            for f in fnames:
+                abspath = os.path.join(dirpath, f)
+
+                is_gzippable = os.path.splitext(f)[1] in self._gzip_ext
+                if is_gzippable:
+                    tmp_handle, tmp_filename = mkstemp()
+
+                    logger.debug('Gzipping {0}'.format(f))
+                    with open(abspath, 'rb') as f_in:
+                        with gzip.open(tmp_filename, 'wb') as f_out:
+                            f_out.writelines(f_in)
+
+                    # overwrite existing file
+                    move(tmp_filename, abspath)
+
+        logger.debug('Finished gzipping files')
+
+
     def _upload_to_bucket(self):
         '''
         Upload contents of output folder to S3.
@@ -343,7 +373,9 @@ class Optimizer(object):
                         pass
 
                     # check if file should be cached / reuploaded
-                    is_asset = os.path.splitext(f)[1] in self._assets_ext
+                    ext = os.path.splitext(f)[1]
+                    is_asset = ext in self._assets_ext
+                    is_gzipped = self._gzip and (ext in self._gzip_ext)
 
                     k = self._bucket.get_key(relpath)
                     if k is None or not is_asset:
@@ -360,6 +392,9 @@ class Optimizer(object):
                         else:
                             # set no-cache headers
                             headers['Cache-Control'] = "no-cache, max-age=0"
+
+                        if is_gzipped:
+                            headers['Content-Encoding'] = "gzip"
 
                         logger.debug("Uploading file {0} to {1}".format(relpath,
                                                                         self._destination_bucket))
@@ -386,6 +421,9 @@ class Optimizer(object):
         self._calculate_fingerprints()
         self._write_dirs()
         self._write_files()
+        if self._gzip:
+            self._gzip_files()
+
         if not self._skip_s3_upload:
             self._upload_to_bucket()
 
@@ -428,6 +466,7 @@ def main():
                         help='AWS access secret. If this field is not specified, credentials from \
                         environment or credentials files will be used.')
     parser.add_argument('--region', default=None, help='AWS region to connect to.')
+    parser.add_argument('--gzip', action='store_true', help='Gzip text-based files.', default=False)
     parser.add_argument('--prefix', default=None, help='Subdirectory in which files are stored in \
                                                         the bucket. Stored in the root of the \
                                                         bucket by default.')
@@ -453,7 +492,7 @@ def main():
                   output_dir=args.output_dir, aws_access_key_id=args.aws_access_key_id,
                   aws_secret_access_key=args.aws_secret_access_key,
                   skip_s3_upload=args.skip_s3_upload, region=args.region,
-                  domains=args.domains, prefix=args.prefix).run()
+                  domains=args.domains, prefix=args.prefix, gzip=args.gzip).run()
     except Exception as e:
         logger.critical(e)
         exit(1)
