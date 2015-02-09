@@ -27,7 +27,8 @@ _rewritables_.
 filename.
 3. Search the contents of the _rewritables_ for references to each of the assets, and rewrite 
 the urls if necessary. 
-4. (optional) Upload all files to an S3 bucket, and *remove all other files* from that bucket. 
+4. (optional) Gzip all text-based files.
+5. (optional) Upload all files to a path in an S3 bucket, and *remove all other files* from that path. 
 Assets are given a never-expiring cache header in order to optimize browser and proxy caching.
 
 All file operations are executed in a (temporary) output directory, the source directory is not 
