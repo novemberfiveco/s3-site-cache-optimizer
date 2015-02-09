@@ -237,7 +237,7 @@ class Optimizer(object):
                                     '[' + url_chars + ']*'
 
                             it = re.finditer(regex, line, re.IGNORECASE)
-                            for result in it:
+                            for result in reversed(list(it)):
                                 url = result.group()
                                 parsed_url = urlparse(url)
                                 if parsed_url.netloc and \
