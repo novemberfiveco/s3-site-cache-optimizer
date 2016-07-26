@@ -10,11 +10,11 @@ bucket with the right cache headers.
 You can install the stable version using the following [pip](https://pip.pypa.io/en/latest/) 
 command:
 
-	pip install --upgrade https://github.com/appstrakt/s3-site-cache-optimizer/archive/master.zip
+	pip install --upgrade s3-site-cache-optimizer
 
 If you want to keep up with the latest features, install the development version:
 
-	pip install --upgrade https://github.com/appstrakt/s3-site-cache-optimizer/archive/develop.zip
+	pip install --upgrade https://github.com/novemberfiveco/s3-site-cache-optimizer/archive/develop.zip
 
 
 ## Operation
@@ -49,6 +49,10 @@ file extensions are considered as _assets_:
 - jpeg
 - gif
 - js
+- xml
+- mp4
+- webm
+- webp
 
 _Rewritables_ are text-based files with one of the following extensions:
 
@@ -56,8 +60,9 @@ _Rewritables_ are text-based files with one of the following extensions:
 - htm
 - js
 - css
+- xml
 
-File a [feature request](https://github.com/appstrakt/s3-site-cache-optimizer/issues/new) 
+File a [feature request](https://github.com/novemberfiveco/s3-site-cache-optimizer/issues/new) 
 if you want to see other file extensions added.
 
 
@@ -107,7 +112,7 @@ if you want to see other file extensions added.
 
 ### Example
 
-	$ s3-site-cache-optimizer ~/srv/www.example.com www.example.com --access-key XXXXXAPPSTRAKTXXXXX --secret-key XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	$ s3-site-cache-optimizer ~/srv/www.example.com www.example.com --access-key XXXXXNOVEMBERFIVEXXXXX --secret-key XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	$ s3-site-cache-optimizer ~/srv/www.example.com www.example.com --exclude ".git/*" ".git*" --region eu-west-1
 	$ s3-site-cache-optimizer ~/srv/www.example.com www.example.com --output ~/srv/example-optimized/ --skip-s3-upload
 	$ s3-site-cache-optimizer ~/srv/www.example.com my_bucket --domains www.example.com example.com --prefix "user/sites/www.example.com"

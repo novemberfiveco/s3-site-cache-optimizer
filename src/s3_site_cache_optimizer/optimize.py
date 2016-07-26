@@ -109,9 +109,9 @@ class Optimizer(object):
             output_dir = mkdtemp()
 
         self._assets_ext = ['.css', '.svg', '.ttf', '.woff', '.woff2', '.otf', '.eot', '.png',
-                            '.jpg', '.jpeg', '.gif', '.js', '.mp4', '.webm']
-        self._rewriteables_ext = ['.html', '.htm', '.js', '.css']
-        self._gzip_ext = ['.html', '.htm', '.css', '.js', '.svg']
+                            '.jpg', '.jpeg', '.gif', '.js', '.mp4', '.webm', '.webp']
+        self._rewriteables_ext = ['.html', '.htm', '.js', '.css', '.xml']
+        self._gzip_ext = ['.html', '.htm', '.css', '.js', '.svg', '.xml']
 
         self._source_dir = source_dir
         self._output_dir = output_dir
@@ -337,7 +337,7 @@ class Optimizer(object):
                 if is_gzippable:
                     tmp_handle, tmp_filename = mkstemp()
 
-                    logger.debug('Gzipping {0}'.format(f))
+                    logger.debug('Gzipping {0}'.format(abspath))
                     with open(abspath, 'rb') as f_in:
                         with gzip.open(tmp_filename, 'wb') as f_out:
                             f_out.writelines(f_in)
