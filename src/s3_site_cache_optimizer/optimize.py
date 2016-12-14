@@ -18,7 +18,7 @@ from hashlib import sha256
 from shutil import copyfile, move, rmtree
 from fnmatch import fnmatch
 from tempfile import mkdtemp, mkstemp
-from urlparse import urlparse
+from urlparse import urlparse, urljoin
 from boto import connect_s3
 from boto.s3 import connect_to_region
 from boto.s3.key import Key
@@ -245,7 +245,6 @@ class Optimizer(object):
                                     # leave this url alone, is third party
                                     logger.warning("Skipping rewriting url {0}.".format(url))
                                     continue
-
                                 logger.debug("Found asset {0} in {1}".format(url, src))
                                 normalized_relative_path = os.path.normpath(
                                     os.path.join(src_reldirpath, parsed_url.path)).lstrip('/')
@@ -254,6 +253,11 @@ class Optimizer(object):
                                     new_path = '/' + os.path.join(
                                         os.path.dirname(normalized_relative_path),
                                         os.path.basename(self._assets_map[asset]['new_filename']))
+
+                                    if parsed_url.netloc:
+                                        # don't remove domain from absolute urls
+                                        new_path = urljoin(url, new_path)
+
                                     logger.debug("Replacing with {0}".format(new_path))
 
                                     line = line[:result.start()] + new_path + line[result.end():]
