@@ -7,7 +7,7 @@ bucket with the right cache headers.
 
 ## Installation
 
-You can install the stable version using the following [pip](https://pip.pypa.io/en/latest/) 
+You can install the stable version using the following [pip](https://pip.pypa.io/en/latest/)
 command:
 
 	pip install --upgrade s3-site-cache-optimizer
@@ -21,17 +21,17 @@ If you want to keep up with the latest features, install the development version
 
 The command line tool executes the following steps:
 
-1. Index the (local) source dir containing the static website, and search for _assets_ and 
+1. Index the (local) source dir containing the static website, and search for _assets_ and
 _rewritables_.
-2. Calculate a hash from the contents of each _asset_, and rename it with the filehash in the 
+2. Calculate a hash from the contents of each _asset_, and rename it with the filehash in the
 filename.
-3. Search the contents of the _rewritables_ for references to each of the assets, and rewrite 
-the urls if necessary. 
+3. Search the contents of the _rewritables_ for references to each of the assets, and rewrite
+the urls if necessary.
 4. (optional) Gzip all text-based files.
-5. (optional) Upload all files to a path in an S3 bucket, and *remove all other files* from that path. 
+5. (optional) Upload all files to a path in an S3 bucket, and *remove all other files* from that path.
 Assets are given a never-expiring cache header in order to optimize browser and proxy caching.
 
-All file operations are executed in a (temporary) output directory, the source directory is not 
+All file operations are executed in a (temporary) output directory, the source directory is not
 altered.
 
 _Assets_ and _rewritables_ are recognized based on their file extension. Currently, the following
@@ -61,8 +61,9 @@ _Rewritables_ are text-based files with one of the following extensions:
 - js
 - css
 - xml
+- json
 
-File a [feature request](https://github.com/novemberfiveco/s3-site-cache-optimizer/issues/new) 
+File a [feature request](https://github.com/novemberfiveco/s3-site-cache-optimizer/issues/new)
 if you want to see other file extensions added.
 
 
@@ -73,7 +74,7 @@ if you want to see other file extensions added.
 	                               [-o OUTPUT_DIR]
 	                               [--access-key AWS_ACCESS_KEY_ID]
 	                               [--secret-key AWS_SECRET_ACCESS_KEY]
-	                               [--region REGION] 
+	                               [--region REGION]
 	                               [--gzip]
 	                               [--prefix PREFIX]
 	                               [--domains DOMAIN [DOMAIN ...]]
