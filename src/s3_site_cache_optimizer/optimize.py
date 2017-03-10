@@ -110,8 +110,8 @@ class Optimizer(object):
 
         self._assets_ext = ['.css', '.svg', '.ttf', '.woff', '.woff2', '.otf', '.eot', '.png',
                             '.jpg', '.jpeg', '.gif', '.js', '.mp4', '.webm', '.webp']
-        self._rewriteables_ext = ['.html', '.htm', '.js', '.css', '.xml']
-        self._gzip_ext = ['.html', '.htm', '.css', '.js', '.svg', '.xml']
+        self._rewriteables_ext = ['.html', '.htm', '.js', '.css', '.xml', '.json']
+        self._gzip_ext = ['.html', '.htm', '.css', '.js', '.svg', '.xml', '.json']
 
         self._source_dir = source_dir
         self._output_dir = output_dir

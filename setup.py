@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='s3-site-cache-optimizer',
-    version='0.5.1',
+    version='0.6.0',
     license='MIT',
 
     description='Optimize a static website before uploading to S3',
@@ -10,9 +10,9 @@ setup(
     all assets\' filenames. The optimized website is uploaded into the specified S3 bucket with \
     the right cache headers.',
 
-    author='Ruben Van den Bossche',
-    author_email='ruben@appstrakt.com',
-    url='https://github.com/appstrakt/s3-site-cache-optimizer',
+    author='Ruben Van den Bossche, Matteo De Wint',
+    author_email='ruben@novemberfive.co, matteo@novemberfive.co',
+    url='https://github.com/novemberfiveco/s3-site-cache-optimizer',
 
     packages=['s3_site_cache_optimizer'],
     package_dir={'': 'src'},
