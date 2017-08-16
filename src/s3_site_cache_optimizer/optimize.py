@@ -6,19 +6,19 @@ headers.
 '''
 
 from __future__ import print_function
-import sys
+
 import argparse
-import os.path
+import os
 import logging
-import fileinput
 import re
 import gzip
-from pkg_resources import Requirement, resource_filename, require
+from pkg_resources import require
 from hashlib import sha256
 from shutil import copyfile, move, rmtree
 from fnmatch import fnmatch
 from tempfile import mkdtemp, mkstemp
 from urlparse import urlparse, urljoin
+
 from boto import connect_s3
 from boto.s3 import connect_to_region
 from boto.s3.key import Key
@@ -77,7 +77,7 @@ class Optimizer(object):
     Optimizer class: Optimize a static website for hosting in S3.
     '''
 
-    def __init__(self, source_dir, destination_bucket, exclude=[], output_dir=None,
+    def __init__(self, source_dir, destination_bucket, exclude=[], skip_assets=[], output_dir=None,
                  aws_access_key_id=None, aws_secret_access_key=None, skip_s3_upload=False,
                  region=None, domains=[], prefix=None, gzip=False):
         '''
@@ -98,7 +98,7 @@ class Optimizer(object):
             if not os.path.isdir(output_dir):
                 try:
                     os.makedirs(output_dir)
-                except os.error as e:
+                except os.error:
                     raise OptimizerError(
                         "{0} is not a directory and cannot be created".format(output_dir))
 
@@ -122,6 +122,7 @@ class Optimizer(object):
         self._assets_map = {}
         self._rewritables = []
         self._exclude = exclude
+        self._skip_assets = skip_assets
         self._domains = domains
         self._prefix = prefix
         self._gzip = gzip
@@ -129,18 +130,18 @@ class Optimizer(object):
 
         if not self._skip_s3_upload:
             try:
-                if region == None:
+                if not region:
                     self._s3 = connect_s3(aws_access_key_id=aws_access_key_id,
                                           aws_secret_access_key=aws_secret_access_key)
                 else:
                     self._s3 = connect_to_region(region, aws_access_key_id=aws_access_key_id,
                                                  aws_secret_access_key=aws_secret_access_key)
-            except (BotoClientError, BotoServerError) as e:
+            except (BotoClientError, BotoServerError):
                 raise OptimizerError("Cannot connect to S3")
 
             try:
                 self._bucket = self._s3.get_bucket(self._destination_bucket)
-            except (BotoClientError, BotoServerError) as e:
+            except (BotoClientError, BotoServerError):
                 raise OptimizerError("Bucket {0} does not exist or is not accessible."
                                      .format(self._destination_bucket))
 
@@ -151,7 +152,7 @@ class Optimizer(object):
             try:
                 logger.debug('Deleting temporary directory')
                 rmtree(self._output_dir)
-            except OSError as exc:
+            except OSError:
                 raise OptimizerError("Can't delete temporary directory.")
 
     def _index_source_dir(self):
@@ -181,6 +182,10 @@ class Optimizer(object):
 
                 ext = os.path.splitext(f)[1]
                 if ext in self._assets_ext:
+                    if any(fnmatch(relpath, skip) for skip in self._skip_assets):
+                        logger.debug("Skipping asset {0}".format(f))
+                        continue
+
                     logger.debug("Found asset {0}".format(f))
                     self._assets_map[relpath] = {
                         'basename': os.path.basename(relpath)}
@@ -325,7 +330,6 @@ class Optimizer(object):
 
         logger.debug('Finished writing files')
 
-
     def _gzip_files(self):
         '''
         Gzip text files in output folder.
@@ -351,7 +355,6 @@ class Optimizer(object):
 
         logger.debug('Finished gzipping files')
 
-
     def _upload_to_bucket(self):
         '''
         Upload contents of output folder to S3.
@@ -367,7 +370,7 @@ class Optimizer(object):
                     abspath = os.path.join(dirpath, f)
                     relpath = os.path.relpath(abspath, self._output_dir)
 
-                    if self._prefix != None:
+                    if self._prefix:
                         relpath = os.path.join(self._prefix, relpath)
 
                     # do not delete this file
@@ -460,6 +463,8 @@ def main():
     parser.add_argument("destination_bucket", help='S3 bucket name.')
     parser.add_argument('--exclude', nargs='+', metavar="PATTERN", default=[],
                         help='Exclude files and directories matching these patterns.')
+    parser.add_argument('--skip-assets', nargs='+', metavar="PATTERN", default=[],
+                        help='Do not fingerprint assets matching these patterns.')
     parser.add_argument('-o', '--output', dest='output_dir', default=None,
                         help='Output directory in which local files are written. When absent a \
                         temporary directory is created and used.')
@@ -492,7 +497,8 @@ def main():
         logger.setLevel(logging.INFO)
 
     try:
-        Optimizer(args.source_dir, args.destination_bucket, exclude=args.exclude,
+        Optimizer(args.source_dir, args.destination_bucket,
+                  exclude=args.exclude, skip_assets=args.skip_assets,
                   output_dir=args.output_dir, aws_access_key_id=args.aws_access_key_id,
                   aws_secret_access_key=args.aws_secret_access_key,
                   skip_s3_upload=args.skip_s3_upload, region=args.region,
