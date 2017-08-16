@@ -184,11 +184,10 @@ class Optimizer(object):
                 if ext in self._assets_ext:
                     if any(fnmatch(relpath, skip) for skip in self._skip_assets):
                         logger.debug("Skipping asset {0}".format(f))
-                        continue
-
-                    logger.debug("Found asset {0}".format(f))
-                    self._assets_map[relpath] = {
-                        'basename': os.path.basename(relpath)}
+                    else:
+                        logger.debug("Found asset {0}".format(f))
+                        self._assets_map[relpath] = {
+                            'basename': os.path.basename(relpath)}
 
                 if ext in self._rewriteables_ext:
                     logger.debug("Found rewritable {0}".format(f))
