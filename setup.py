@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='s3-site-cache-optimizer',
-    version='0.6.0',
+    version='0.7.0',
     license='MIT',
 
     description='Optimize a static website before uploading to S3',
@@ -18,5 +18,5 @@ setup(
     package_dir={'': 'src'},
 
     install_requires=['boto'],
-    entry_points={ 'console_scripts' : ['s3-site-cache-optimizer=s3_site_cache_optimizer.optimize:main'] },
+    entry_points={'console_scripts': ['s3-site-cache-optimizer=s3_site_cache_optimizer.optimize:main']},
 )
