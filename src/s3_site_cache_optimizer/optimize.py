@@ -112,6 +112,7 @@ class Optimizer(object):
                             '.jpg', '.jpeg', '.gif', '.js', '.mp4', '.webm', '.webp']
         self._rewriteables_ext = ['.html', '.htm', '.js', '.css', '.xml', '.json']
         self._gzip_ext = ['.html', '.htm', '.css', '.js', '.svg', '.xml', '.json']
+        self._content_types = {'.wasm': 'application/wasm'}
 
         self._source_dir = source_dir
         self._output_dir = output_dir
@@ -401,6 +402,11 @@ class Optimizer(object):
 
                         if is_gzipped:
                             headers['Content-Encoding'] = "gzip"
+
+                        try:
+                            headers['Content-Type'] = self._content_types[ext]
+                        except KeyError:
+                            pass
 
                         logger.debug("Uploading file {0} to {1}".format(relpath,
                                                                         self._destination_bucket))
