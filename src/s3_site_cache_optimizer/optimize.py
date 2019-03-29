@@ -17,7 +17,10 @@ from hashlib import sha256
 from shutil import copyfile, move, rmtree
 from fnmatch import fnmatch
 from tempfile import mkdtemp, mkstemp
-from urlparse import urlparse, urljoin
+try:
+    from urlparse import urlparse, urljoin
+except ImportError:
+    from urllib.parse import urlparse, urljoin
 
 from boto import connect_s3
 from boto.s3 import connect_to_region
