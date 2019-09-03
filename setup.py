@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='s3-site-cache-optimizer',
-    version='0.8.0',
+    version='0.8.1',
     license='MIT',
 
     description='Optimize a static website before uploading to S3',
