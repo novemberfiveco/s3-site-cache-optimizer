@@ -32,7 +32,7 @@ __email__ = "ruben@appstrakt.com"
 __copyright__ = "Copyright 2015, Appstrakt BVBA"
 __license__ = "MIT"
 
-logger = None
+logger = logging.getLogger('s3-site-cache-optimizer')
 
 
 def calculate_fingerprint(fname):
@@ -451,8 +451,6 @@ def main():
     '''
 
     # init logger
-    global logger
-    logger = logging.getLogger('s3-site-cache-optimizer')
     ch = logging.StreamHandler()
     formatter = logging.Formatter('%(levelname)s - %(message)s')
     ch.setFormatter(formatter)
